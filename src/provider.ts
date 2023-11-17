@@ -17,16 +17,16 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         prefix: string;
         suffix: string;
         versionType: string;
-        editVersion: boolean;
+        editPkg: boolean;
     } = {
         prefix: '',
         suffix: '',
         versionType: 'patch',
-        editVersion: true,
+        editPkg: true,
     };
     public newTag: string = '';
     private initLoading: any;
-    private pkgContent: string = '';
+    private pkgContent: any = {};
     
     constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -51,7 +51,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'formChange':
                     this.formData = msg.data;
-                    this.genVersion();
+                    this.genTag();
                     break;
                 case 'submit':
                     this.handleSubmit();
@@ -100,8 +100,8 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     <p class="tags-label">Tag 后缀</p>
                     <input id="suffix" class="tags-title form" type="text" name="tag_suffix" />
                     <div class="tags-checkbox">
-                        <input id="editVersion" class="checkbox" checked type="checkbox" name="edit_version">
-                        <label for="editVersion">修改 package.json#version，并提交。</label>
+                        <input id="editPkg" class="checkbox" checked type="checkbox" name="edit_pkg">
+                        <label for="editPkg">将生成的 tag 存到 package.json#tag 中，并提交更改。</label>
                     </div>
                     <p class="tag-value" id="tag"></p>
 
@@ -132,10 +132,10 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             this.initLoading = null;
         }
         this.initLoading = await withProgress('Gen Tags: 初始化...');
-        this.pkgContent = await this.optFile('./package.json') || '';
+        const pkgStr = await this.optFile('./package.json') || '';
         try {
-            const json = JSON.parse(this.pkgContent);
-            const prefix = json['tagPrefix'] || [];
+            this.pkgContent = JSON.parse(pkgStr);
+            const prefix = this.pkgContent['tagPrefix'] || [];
             this.postMsg('prefixOptions', prefix);
         } catch (e) {
             log('package.json 解析失败');
@@ -170,7 +170,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     .filter(item => item.type === 2 && item.name !== undefined)
                     .map(item => item.name as string);
                     this.initLoading.res();
-                this.genVersion();
+                this.genTag();
             });
         }).catch(() => {
             this.initLoading.res();
@@ -237,7 +237,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         return tag || '0.0.0';
     }
     
-    genVersion() {
+    genTag() {
         const { prefix, suffix, versionType } = this.formData;
         let version = this.latestTag(this.tags);
         const updateIndex = ['major', 'minor', 'patch'].indexOf(versionType);
@@ -260,13 +260,13 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         const p = await withProgress('Gen Tags: 推送 Tag...');
         let msg = '操作失败';
         try {
-            if (this.formData.editVersion) {
-                msg = 'package.json#version 更新失败';
-                // 以字符串的形式替换，确保代码格式不变
-                this.optFile('./package.json', this.pkgContent.replace(/("version"\s*:\s*")([^"]*)(")/, `$1${this.newTag}$3`));
+            if (this.formData.editPkg) {
+                msg = 'package.json#tag 设置失败';
+                this.pkgContent.tag = this.newTag;
+                this.optFile('./package.json', JSON.stringify(this.pkgContent, null, 4));
                 const fullPath = this.getWorkspaceFilePath('package.json');
                 await this.repo?.add([fullPath]);
-                await this.repo?.commit('build: update package.json#version').catch(() => {
+                await this.repo?.commit('build: update package.json#tag').catch(() => {
                     msg = '提交 package.json 失败';
                 });
             }

@@ -11,14 +11,14 @@
     const prefixDom = query('#prefix');
     const suffixDom = query('#suffix');
     const versionTypeDom = query('#versionType');
-    const editVersionDom = query('#editVersion');
+    const editPkgDom = query('#editPkg');
     const submitBtn = query('#submitBtn');
 
     const formData = {
         prefix: '',
         suffix: '',
         versionType: 'patch',
-        editVersion: true,
+        editPkg: true,
     };
     const updateForm = () => postMsg('formChange', formData);
 
@@ -34,8 +34,8 @@
         formData.versionType = versionTypeDom.value;
         updateForm();
     });
-    editVersionDom.addEventListener('change', () => {
-        formData.editVersion = editVersionDom.checked;
+    editPkgDom.addEventListener('change', () => {
+        formData.editPkg = editPkgDom.checked;
         updateForm();
     });
     submitBtn.addEventListener('click', () => {
