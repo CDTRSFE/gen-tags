@@ -135,7 +135,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         this.pkgContent = await this.optFile('./package.json') || '';
         try {
             const json = JSON.parse(this.pkgContent);
-            const prefix = json['tag-prefix'] || [];
+            const prefix = json['tagPrefix'] || [];
             this.postMsg('prefixOptions', prefix);
         } catch (e) {
             log('package.json 解析失败');
