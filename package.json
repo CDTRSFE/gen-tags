@@ -1,11 +1,17 @@
 {
   "name": "gen-tags",
   "displayName": "Gen Tags",
+  "publisher": "zhaoqing",
   "description": "gen tag",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "engines": {
-    "vscode": "^1.70.0"
+    "vscode": "^1.82.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CDTRSFE/gen-tags"
+  },
+  "icon": "src/assets/icon.png",
   "categories": [
     "Other"
   ],
@@ -66,7 +72,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.3",
     "@types/node": "18.x",
-    "@types/vscode": "^1.84.0",
+    "@types/vscode": "^1.70.0",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
     "@vscode/test-electron": "^2.3.6",
