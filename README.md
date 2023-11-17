@@ -8,7 +8,7 @@
 
 - 按规则生成 tag
 - 支持前缀和后缀
-- 同时修改 package.json 中的版本号
+- 将生成的 tag 存在 package.json 中
 
 > 前缀通过 package.json 中的 `tagPrefix` 字段配置，如： `tagPrefix: ["v-"]`。
 
