@@ -20,14 +20,6 @@ export function activate(context: vscode.ExtensionContext) {
 		return vscode.commands.registerCommand(name, cb);
 	};
 
-	// const openGitPage = (isMr = false) => {
-	// 	let url = provider.gitUrl;
-	// 	if (url) {
-	// 		url = url.replace(/.git$/, '');
-	// 		vscode.env.openExternal(vscode.Uri.parse(url + (isMr ? '/-/merge_requests' : '')));
-	// 	}
-	// };
-
 	context.subscriptions.push(
 		register('gentags.refresh', () => provider.init()),
 	);

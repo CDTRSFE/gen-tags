@@ -38,10 +38,6 @@ const extensionConfig = {
           }
         ]
       },
-      {
-        test: /\.html$/i,
-        use: 'raw-loader',
-      },
     ]
   },
   devtool: 'nosources-source-map',

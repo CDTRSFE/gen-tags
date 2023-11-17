@@ -4,124 +4,18 @@ body {
 .vscode-dark {
     --tags-border-color: rgba(128, 128, 128, .40);
 }
-
 .tag-value {
     margin: 14px 0;
     font-size: 18px;
     text-align: center;
-    /* font-weight: bold; */
     color: var(--vscode-descriptionForeground);
-}
-
-.tags-wrap.hidden {
-    display: none;
 }
 .tags-wrap .tags-form {
     display: block;
 }
-.tags-wrap .tags-tips {
-    display: none;
-}
-.tags-wrap.show-tips .tags-form {
-    /* display: none; */
-}
-.tags-wrap.show-tips .tags-tips {
-    display: block;
-}
-.tags-tips p {
-    margin-top: 10px;
-    line-height: 1.4em;
-    color: var(--vscode-editor-foreground);
-}
-.tags-tips button {
-    margin-top: 10px;
-} 
-
 .tags-label {
     margin: 10px 0;
     color: var(--vscode-descriptionForeground);
-}
-textarea {
-    resize: none;
-}
-.tags-assignee-id {
-    display: inline-block;
-    height: 0;
-    border: 0;
-    opacity: 0;
-    padding: 0 !important;
-    position: absolute;
-}
-.tags-user-select {
-    position: relative;
-}
-.tags-assignee-name {
-    height: 18px;
-    box-sizing: content-box;
-    line-height: 18px;
-    padding: var(--input-padding-vertical) var(--input-padding-horizontal);
-	color: var(--vscode-input-foreground);
-    background-color: var(--vscode-input-background);
-}
-.tags-user-select .user-wrap {
-    display: flex;
-    flex-direction: column;
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 0;
-    margin-top: 6px;
-    overflow: hidden;
-    transition: 0.3s;
-    background-color: var(--vscode-input-background);
-}
-.tags-user-select .list {
-    flex: 1;
-    position: relative;
-}
-.tags-keyword-inp {
-    margin: 6px;
-    width: auto !important;
-}
-.tags-user-list {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 0;
-    line-height: 2;
-    list-style: none;
-    overflow: auto;
-}
-.tags-user-select.show .user-wrap {
-    height: 170px;
-}
-.tags-user-item {
-    display: flex;
-    line-height: 1.4;
-    padding: 4px 6px;
-    flex-wrap: wrap;
-    margin: 0 4px;
-    cursor: pointer;
-}
-.tags-user-item:hover {
-    background: var(--vscode-list-hoverBackground);
-}
-.tags-user-list .name {
-    margin-right: 6px;
-}
-.tags-user-list .username {
-    opacity: 0.5;
-}
-.tags-user-select .empty {
-    display: none;
-    line-height: 2;
-    color: var(--vscode-descriptionForeground);
-    text-align: center;
-}
-.tags-user-select .empty.show {
-    display: block;
 }
 .tags-checkbox {
     display: flex;
@@ -141,23 +35,4 @@ textarea {
 }
 .tags-btn:disabled {
     cursor: not-allowed;
-}
-
-.tags-repo {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--tags-border-color);
-}
-.tags-repo-name {
-    padding: 7px 4px;
-    margin: 0 6px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--vscode-tab-inactiveForeground);
-    cursor: pointer;
-}
-.tags-repo-name.active {
-    border-bottom: 2.5px solid var(--vscode-button-background);
-    color: var(--vscode-tab-activeForeground);
 }

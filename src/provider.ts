@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
-import { Repository } from './git';
+import { Repository } from './type';
 import { format } from 'date-fns';
 
 const path = require('path');
-// import { GitExtension } from './type';
 const { Uri } = vscode;
-// import Api from './api';
-import { validateForm, info, log, withProgress } from './utils';
+import { log, withProgress } from './utils';
 
 let getGitTimes = 0;
 export default class TagProvider implements vscode.WebviewViewProvider {
@@ -27,13 +25,8 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         editVersion: true,
     };
     public newTag: string = '';
-    private initPromise: any;
+    private initLoading: any;
     private pkgContent: string = '';
-    // private git?: GitExtensionWrap;
-    // private api?: Api;
-    // private config: ExtensionConfig = {};
-    // public gitUrl?: string;
-    // public repoPath?: string;
     
     constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -134,11 +127,11 @@ export default class TagProvider implements vscode.WebviewViewProvider {
 
     async init() {
         this.disableSubmit();
-        if (this.initPromise) {
-            this.initPromise.res();
-            this.initPromise = null;
+        if (this.initLoading) {
+            this.initLoading.res();
+            this.initLoading = null;
         }
-        this.initPromise = await withProgress('Gen Tags: 初始化...');
+        this.initLoading = await withProgress('Gen Tags: 初始化...');
         this.pkgContent = await this.optFile('./package.json') || '';
         try {
             const json = JSON.parse(this.pkgContent);
@@ -151,10 +144,9 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         const fn = (res: any) => {
             getGitTimes++;
             if (getGitTimes > 5) {
-                this.initPromise.res();
+                this.initLoading.res();
                 log('获取 git 信息失败');
                 res();
-                return;
             } else {
                 this.getGitInfo();
                 if (!this.repo) {
@@ -167,6 +159,8 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         await new Promise(res => fn(res));
 
         if (!this.repo) {
+            this.initLoading.res();
+            log('获取 tags 失败');
             return;
         }
         await this.repo.fetch().then(() => {
@@ -175,11 +169,11 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     // type: 2 表示 tag
                     .filter(item => item.type === 2 && item.name !== undefined)
                     .map(item => item.name as string);
-                    this.initPromise.res();
+                    this.initLoading.res();
                 this.genVersion();
             });
         }).catch(() => {
-            this.initPromise.res();
+            this.initLoading.res();
             log('获取 tags 失败');
         });
         this.disableSubmit(false);
