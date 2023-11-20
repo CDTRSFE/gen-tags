@@ -160,7 +160,6 @@ export default class TagProvider implements vscode.WebviewViewProvider {
 
         if (!this.repo) {
             this.initLoading.res();
-            log('获取 tags 失败');
             return;
         }
         await this.repo.fetch().then(() => {
@@ -258,29 +257,31 @@ export default class TagProvider implements vscode.WebviewViewProvider {
     async handleSubmit() {
         this.disableSubmit();
         const p = await withProgress('Gen Tags: 推送 Tag...');
-        let msg = '操作失败';
         try {
             if (this.formData.editPkg) {
-                msg = 'package.json#tag 设置失败';
                 this.pkgContent.tag = this.newTag;
-                this.optFile('./package.json', JSON.stringify(this.pkgContent, null, 4));
+                this.optFile('./package.json', JSON.stringify(this.pkgContent, null, 4)).catch(() => {
+                    throw new Error('package.json#tag 设置失败');
+                });
                 const fullPath = this.getWorkspaceFilePath('package.json');
-                await this.repo?.add([fullPath]);
+                await this.repo?.add([fullPath]).catch(() => {
+                    throw new Error('提交 package.json 失败');
+                });
                 await this.repo?.commit('build: update package.json#tag').catch(() => {
-                    msg = '提交 package.json 失败';
+                    throw new Error('提交 package.json 失败');
                 });
             }
             await this.repo?.tag(this.newTag, 'HEAD').catch(() => {
-                msg = '创建 Tag 失败';
+                throw new Error('创建 Tag 失败');
             });
             await this.repo?.push('origin', this.newTag).catch(() => {
-                msg = '推送 Tag 失败';
+                throw new Error('推送 Tag 失败');
             });
             p.res();
             this.init();
             this.disableSubmit(false);
         } catch (e) {
-            log(msg);
+            log((e as Error).message || '推送失败');
             p.res();
             this.disableSubmit(false);
         }
