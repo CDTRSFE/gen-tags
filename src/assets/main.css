@@ -1,8 +1,12 @@
 body {
+    overflow: hidden;
     --tags-border-color: rgba(100, 100, 100, .22);
 }
 .vscode-dark {
     --tags-border-color: rgba(128, 128, 128, .40);
+}
+.hidden {
+    display: none !important;
 }
 .tag-value {
     margin: 14px 0;
@@ -10,8 +14,22 @@ body {
     text-align: center;
     color: var(--vscode-descriptionForeground);
 }
+.tags-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: auto;
+    margin: 0 !important;
+}
+.flex-wrap {
+    flex: 1;
+    position: relative;
+}
 .tags-wrap .tags-form {
-    display: block;
+    padding: 0 var(--container-padding);
+    position: absolute;
+    inset: 0;
+    overflow: auto;
 }
 .tags-label {
     margin: 10px 0;
@@ -32,8 +50,46 @@ body {
     color: var(--vscode-descriptionForeground);
 }
 .tags-btn {
-    margin-bottom: 30px;
+    display: block;
+    margin: 12px var(--container-padding);
+    /* margin-bottom: 30px; */
 }
 .tags-btn:disabled {
-    cursor: not-allowed;
+    /* cursor: not-allowed; */
+    display: none;
+}
+
+.footer {
+    display: flex;
+    border-top: 1px solid var(--tags-border-color);
+}
+.progress {
+    display: none;
+    margin: 12px var(--container-padding);
+    /* padding: 16px 0; */
+    /* border-top: 1px solid var(--tags-border-color); */
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+    overflow: hidden;
+}
+.pro-item {
+    display: flex;
+    align-items: start;
+    line-height: 16px;
+}
+.pro-item:not(:last-child) {
+    margin-bottom: 6px;
+}
+.pro-icon {
+    /* display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 10px;
+    height: 10px; */
+    margin-right: 6px;
+    /* border: 1px solid var(--vscode-descriptionForeground);
+    border-radius: 50%; */
+}
+.pro-item.notStart {
+    opacity: 0.5;
 }

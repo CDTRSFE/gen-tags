@@ -2,7 +2,6 @@
     const vscode = acquireVsCodeApi();
 
     const query = e => document.querySelector(e);
-    const queryAll = e => document.querySelectorAll(e);
     const postMsg = (type, data) => vscode.postMessage({ type, data });
 
     // const oldState = vscode.getState();
@@ -66,6 +65,11 @@
                 break;
             case 'disableSubmit':
                 submitBtn.disabled = msg.data;
+                break;
+            case 'updateProgress':
+                const progress = query('#progressList');
+                progress.innerHTML = msg.data;
+                progress.style.display = msg.data ? 'block' : 'none';
                 break;
         }
     });

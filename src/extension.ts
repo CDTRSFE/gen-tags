@@ -21,8 +21,12 @@ export function activate(context: vscode.ExtensionContext) {
 	};
 
 	context.subscriptions.push(
-		register('gentags.refresh', () => provider.init()),
+		register('gentags.refresh', () => {
+			provider.getGitTimes = 0;
+			provider.init();
+		}),
 	);
+	provider.getGitTimes = 0;
 	provider.init();
 }
 

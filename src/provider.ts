@@ -6,7 +6,28 @@ const path = require('path');
 const { Uri } = vscode;
 import { log, withProgress } from './utils';
 
-let getGitTimes = 0;
+type ProgressInfo = {
+    status: 'error' | 'success' | 'pending' | 'notStart';
+    text: string;
+    hide?: boolean;
+};
+const getDefaultInfo: () => ProgressInfo[] = () => {
+    return [
+        { status: 'notStart', text: '修改 package.json#tag' },
+        { status: 'notStart', text: 'git add package.json' },
+        { status: 'notStart', text: 'git commit package.json' },
+        { status: 'notStart', text: 'git tag' },
+        { status: 'notStart', text: 'git push' },
+    ];
+};
+const getInitInfo: () => ProgressInfo[] = () => {
+    return [
+        { status: 'notStart', text: '获取 package.json#tagPrefix' },
+        { status: 'notStart', text: '初始化 git' },
+        { status: 'notStart', text: '获取 tags' },
+    ];
+};
+
 export default class TagProvider implements vscode.WebviewViewProvider {
 
     public static readonly viewType: string = 'gen.tags';
@@ -25,8 +46,10 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         editPkg: true,
     };
     public newTag: string = '';
-    private initLoading: any;
     private pkgContent: any = {};
+    private resultInfo: ProgressInfo[] = getDefaultInfo();
+    private initInfo: ProgressInfo[] = getInitInfo();
+    public getGitTimes: number = 0;
     
     constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -47,6 +70,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(msg => {
 			switch (msg.type) {
                 case 'init': 
+                    this.getGitTimes = 0;
                     this.init();
                     break;
                 case 'formChange':
@@ -85,27 +109,30 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         </head>
         <body>
             <div class="tags-wrap">
-                <div id="repo-list"></div>
-                <div class="tags-form">
-                    <p class="tags-label">Tag 前缀</p>
-                    <select id="prefix" class="tags-target-branch branches-select form" name="tag_prefix">
-                    </select>
-                    <p class="tags-label">版本类型</p>
-                    <select id="versionType" class="tags-target-branch branches-select form" name="version_type">
-                        <option value="major">major</option>
-                        <option value="minor">minor</option>
-                        <option value="patch" selected>patch</option>
-                        <option value="RC">RC</option>
-                    </select>
-                    <p class="tags-label">Tag 后缀</p>
-                    <input id="suffix" class="tags-title form" type="text" name="tag_suffix" />
-                    <div class="tags-checkbox">
-                        <input id="editPkg" class="checkbox" checked type="checkbox" name="edit_pkg">
-                        <label for="editPkg">将生成的 tag 存到 package.json#tag 中，并提交更改。</label>
+                <div class="flex-wrap">
+                    <div class="tags-form">
+                        <p class="tags-label">Tag 前缀</p>
+                        <select id="prefix" class="tags-target-branch branches-select form" name="tag_prefix">
+                        </select>
+                        <p class="tags-label">版本类型</p>
+                        <select id="versionType" class="tags-target-branch branches-select form" name="version_type">
+                            <option value="major">major</option>
+                            <option value="minor">minor</option>
+                            <option value="patch" selected>patch</option>
+                            <option value="RC">RC</option>
+                        </select>
+                        <p class="tags-label">Tag 后缀</p>
+                        <input id="suffix" class="tags-title form" type="text" name="tag_suffix" />
+                        <div class="tags-checkbox">
+                            <input id="editPkg" class="checkbox" checked type="checkbox" name="edit_pkg">
+                            <label for="editPkg">将生成的 tag 存到 package.json#tag 中，并提交更改。</label>
+                        </div>
+                        <p class="tag-value" id="tag"></p>
                     </div>
-                    <p class="tag-value" id="tag"></p>
-
-                    <button class="tags-btn" id="submitBtn">推送 Tag</button>
+                </div>
+                <div class="footer">
+                    <button class="tags-btn" disabled id="submitBtn">推送 Tag</button>
+                    <div id="progressList" class="progress"></div>
                 </div>
             </div>
             <script nonce="${nonce}" src="${scriptUri}"></script>
@@ -127,55 +154,63 @@ export default class TagProvider implements vscode.WebviewViewProvider {
 
     async init() {
         this.disableSubmit();
-        if (this.initLoading) {
-            this.initLoading.res();
-            this.initLoading = null;
-        }
-        this.initLoading = await withProgress('Gen Tags: 初始化...');
-        const pkgStr = await this.optFile('./package.json') || '';
-        try {
-            this.pkgContent = JSON.parse(pkgStr);
-            const prefix = this.pkgContent['tagPrefix'] || [];
-            this.postMsg('prefixOptions', prefix);
-        } catch (e) {
-            log('package.json 解析失败');
-        }
+        this.postMsg('updateProgress', '');
+        this.resultInfo = getInitInfo();
 
-        const fn = (res: any) => {
-            getGitTimes++;
-            if (getGitTimes > 5) {
-                this.initLoading.res();
-                log('获取 git 信息失败');
+        this.editInfo(0, 'pending', this.initInfo);
+        const pkgStr = await this.optFile('./package.json') || '';
+        await new Promise<void>((res, rej) => {
+            try {
+                this.pkgContent = JSON.parse(pkgStr);
+                const prefix = this.pkgContent['tagPrefix'] || [];
+                this.postMsg('prefixOptions', prefix);
+                this.editInfo(0, 'success', this.initInfo);
                 res();
+            } catch (e) {
+                this.editInfo(0, 'error', this.initInfo);
+                rej();
+            }
+        });
+
+        const fn = (res: any, rej: any) => {
+            this.getGitTimes++;
+            if (this.getGitTimes > 10) {
+                this.editInfo(1, 'error', this.initInfo);
+                rej();
             } else {
                 this.getGitInfo();
                 if (!this.repo) {
-                    setTimeout(() => fn(res), 1000);
+                    setTimeout(() => fn(res, rej), 1000);
                 } else {
                     res();
                 }
             }
         };
-        await new Promise(res => fn(res));
+        this.editInfo(1, 'pending', this.initInfo);
+        await new Promise<void>((res, rej) => fn(res, rej));
+        this.editInfo(1, 'success', this.initInfo);
 
         if (!this.repo) {
-            this.initLoading.res();
             return;
         }
+        this.editInfo(2, 'pending', this.initInfo);
         await this.repo.fetch().then(() => {
             this.repo?.getRefs({}).then(res => {
                 this.tags = res
                     // type: 2 表示 tag
                     .filter(item => item.type === 2 && item.name !== undefined)
                     .map(item => item.name as string);
-                    this.initLoading.res();
+                    // this.initLoading.res();
                 this.genTag();
             });
+            this.editInfo(2, 'success', this.initInfo);
+            this.postMsg('updateProgress', '');
+            this.disableSubmit(false);
         }).catch(() => {
-            this.initLoading.res();
-            log('获取 tags 失败');
+            // this.initLoading.res();
+            this.editInfo(2, 'error', this.initInfo);
         });
-        this.disableSubmit(false);
+        this.resultInfo = getDefaultInfo();
     }
 
     postMsg(type: string, data: any) {
@@ -253,38 +288,46 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         this.newTag = prefix + version + suffix;
         this.postMsg('updateTag', this.newTag);
     }
+
+    editInfo(index: number, status: ProgressInfo["status"], info: ProgressInfo[] = this.resultInfo) {
+        info[index].status = status;
+        this.updateProgress(info);
+    }
     
     async handleSubmit() {
         this.disableSubmit();
-        const p = await withProgress('Gen Tags: 推送 Tag...');
-        try {
-            if (this.formData.editPkg) {
-                this.pkgContent.tag = this.newTag;
-                this.optFile('./package.json', JSON.stringify(this.pkgContent, null, 4)).catch(() => {
-                    throw new Error('package.json#tag 设置失败');
-                });
-                const fullPath = this.getWorkspaceFilePath('package.json');
-                await this.repo?.add([fullPath]).catch(() => {
-                    throw new Error('提交 package.json 失败');
-                });
-                await this.repo?.commit('build: update package.json#tag').catch(() => {
-                    throw new Error('提交 package.json 失败');
-                });
-            }
-            await this.repo?.tag(this.newTag, 'HEAD').catch(() => {
-                throw new Error('创建 Tag 失败');
+        // const p = await withProgress('Gen Tags: 推送 Tag...');
+        if (this.formData.editPkg) {
+            this.editInfo(0, 'pending');
+            this.pkgContent.tag = this.newTag;
+            await this.optFile('./package.json', JSON.stringify(this.pkgContent, null, 4)).catch(() => {
+                this.editInfo(0, 'error');
             });
-            await this.repo?.push('origin', this.newTag).catch(() => {
-                throw new Error('推送 Tag 失败');
+            this.editInfo(0, 'success');
+            this.editInfo(1, 'pending');
+            const fullPath = this.getWorkspaceFilePath('package.json');
+            await this.repo?.add([fullPath]).catch(() => {
+                this.editInfo(1, 'error');
             });
-            p.res();
-            this.init();
-            this.disableSubmit(false);
-        } catch (e) {
-            log((e as Error).message || '推送失败');
-            p.res();
-            this.disableSubmit(false);
+            this.editInfo(1, 'success');
+            this.editInfo(2, 'pending');
+            await this.repo?.commit('build: update package.json#tag').catch(() => {
+                this.editInfo(2, 'error');
+            });
+            this.editInfo(2, 'success');
+        } else {
+            this.resultInfo.slice(0, 3).forEach(item => item.hide = true);
         }
+        this.editInfo(3, 'pending');
+        await this.repo?.tag(this.newTag, 'HEAD').catch(() => {
+            this.editInfo(3, 'error');
+        });
+        this.editInfo(3, 'success');
+        this.editInfo(4, 'pending');
+        await this.repo?.push('origin', this.newTag).catch(() => {
+            this.editInfo(4, 'error');
+        });
+        this.editInfo(4, 'success');
     }
     
     getNonce() {
@@ -294,5 +337,24 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             text += possible.charAt(Math.floor(Math.random() * possible.length));
         }
         return text;
+    }
+
+    updateProgress(info: ProgressInfo[]) {
+        const iconMap = {
+            error: '✗',
+            success: '✓',
+            pending: '○',
+            notStart: '○',
+        };
+        const html = `
+        ${
+            info.map((item, index) => {
+                return `<div class="pro-item ${item.status} ${item.hide ? 'hidden' : ''}">
+                    <div class="pro-icon">${iconMap[item.status]}</div>
+                    <div class="pro-text">${item.text} ${index > 2 ? this.newTag : ''}${item.status === 'pending' ? '...' : ''}</div>
+                </div>`;
+            }).join('')
+        }`;
+        this.postMsg('updateProgress', html);
     }
 }

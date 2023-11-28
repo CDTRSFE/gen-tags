@@ -22,6 +22,10 @@
 
 ## Release Notes
 
+### 1.1.0
+
+- 显示异步处理过程
+
 ### 1.0.0
 
 Initial release of ...
