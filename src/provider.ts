@@ -178,8 +178,8 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         }
         this.editInfo(1, 'success', this.initInfo);
         this.editInfo(2, 'pending', this.initInfo);
+        await this.exeCmd('git tag | xargs git tag -d', () => '', () => this.editInfo(2, 'error', this.initInfo));
         await this.exeCmd('git fetch --tags', () => '', () => this.editInfo(2, 'error', this.initInfo));
-        console.log('');
         const tags = await this.exeCmd('git tag', () => '', () => this.editInfo(2, 'error', this.initInfo));
         this.tags = tags.split('\n').filter(item => item !== '');
         this.editInfo(2, 'success', this.initInfo);
@@ -318,7 +318,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             await this.exeCmd(`git add package.json`, () => this.editInfo(1, 'success'), () => this.editInfo(1, 'error'));
             this.editInfo(2, 'pending');
             await this.exeCmd(
-                `git commit -m "build: update package.json#tag"`,
+                `git commit -m "build: update package.json#tag" --no-verify`,
                 () => this.editInfo(2, 'success'),
                 () => this.editInfo(2, 'error'),
             );
