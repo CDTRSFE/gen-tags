@@ -5,7 +5,7 @@ import spawnCMD from 'spawn-command';
 
 const path = require('path');
 const { Uri } = vscode;
-import { log, withProgress } from './utils';
+import { log } from './utils';
 
 type ProgressInfo = {
     status: 'error' | 'success' | 'pending' | 'notStart';
@@ -132,7 +132,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     </div>
                 </div>
                 <div class="footer">
-                    <button class="tags-btn" disabled id="submitBtn">推送 Tag1</button>
+                    <button class="tags-btn" disabled id="submitBtn">推送 Tag</button>
                     <div id="progressList" class="progress"></div>
                 </div>
             </div>
@@ -140,18 +140,6 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         </body>
         </html>`;
     }
-
-    // async getGitInfo() {
-    //     const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
-    //     // if (!gitExtension.isActive) {
-    //     //     await gitExtension.activate?.();
-    //     // }
-    //     const git = gitExtension?.getAPI(1);
-    //     const repo: Repository = git?.repositories[0];
-    //     if (repo) {
-    //         this.repo = repo;
-    //     }
-    // }
 
     async init() {
         this.disableSubmit();
@@ -178,22 +166,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             }
         });
 
-        // const fn = (res: any, rej: any) => {
-        //     this.getGitTimes++;
-        //     if (this.getGitTimes > 10) {
-        //         this.editInfo(1, 'error', this.initInfo);
-        //         rej();
-        //     } else {
-        //         this.getGitInfo();
-        //         if (!this.repo) {
-        //             setTimeout(() => fn(res, rej), 1000);
-        //         } else {
-        //             res();
-        //         }
-        //     }
-        // };
         this.editInfo(1, 'pending', this.initInfo);
-        // await new Promise<void>((res, rej) => fn(res, rej));
         const ifGitRepo = await this.exeCmd(
             'if [ -d .git ]; \nthen \necho "git repo" \nelse \necho "" \nfi',
             () => '',
@@ -213,23 +186,6 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         this.genTag();
         this.postMsg('updateProgress', '');
         this.disableSubmit(false);
-        // this.tags = tags.split('\n').filter(item => item !== '');
-        // await this.repo.fetch().then(() => {
-        //     this.repo?.getRefs({}).then(res => {
-        //         this.tags = res
-        //             // type: 2 表示 tag
-        //             .filter(item => item.type === 2 && item.name !== undefined)
-        //             .map(item => item.name as string);
-        //             // this.initLoading.res();
-        //         this.genTag();
-        //     });
-        //     this.editInfo(2, 'success', this.initInfo);
-        //     this.postMsg('updateProgress', '');
-        //     this.disableSubmit(false);
-        // }).catch(() => {
-        //     // this.initLoading.res();
-        //     this.editInfo(2, 'error', this.initInfo);
-        // });
         this.resultInfo = getDefaultInfo();
     }
 

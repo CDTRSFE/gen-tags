@@ -3,7 +3,7 @@
   "displayName": "Gen Tags",
   "publisher": "zhaoqing",
   "description": "gen tag",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "engines": {
     "vscode": "^1.82.0"
   },
@@ -14,9 +14,6 @@
   "icon": "src/assets/icon.png",
   "categories": [
     "Other"
-  ],
-  "extensionDependencies": [
-    "vscode.git"
   ],
   "activationEvents": [
     "onView:gen.tags"
