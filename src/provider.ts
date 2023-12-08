@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Repository } from './type';
 import { format } from 'date-fns';
+import spawnCMD from 'spawn-command';
 
 const path = require('path');
 const { Uri } = vscode;
@@ -131,7 +132,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     </div>
                 </div>
                 <div class="footer">
-                    <button class="tags-btn" disabled id="submitBtn">推送 Tag</button>
+                    <button class="tags-btn" disabled id="submitBtn">推送 Tag1</button>
                     <div id="progressList" class="progress"></div>
                 </div>
             </div>
@@ -140,17 +141,17 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         </html>`;
     }
 
-    async getGitInfo() {
-        const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
-        // if (!gitExtension.isActive) {
-        //     await gitExtension.activate?.();
-        // }
-        const git = gitExtension?.getAPI(1);
-        const repo: Repository = git?.repositories[0];
-        if (repo) {
-            this.repo = repo;
-        }
-    }
+    // async getGitInfo() {
+    //     const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+    //     // if (!gitExtension.isActive) {
+    //     //     await gitExtension.activate?.();
+    //     // }
+    //     const git = gitExtension?.getAPI(1);
+    //     const repo: Repository = git?.repositories[0];
+    //     if (repo) {
+    //         this.repo = repo;
+    //     }
+    // }
 
     async init() {
         this.disableSubmit();
@@ -158,7 +159,12 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         this.resultInfo = getInitInfo();
 
         this.editInfo(0, 'pending', this.initInfo);
-        const pkgStr = await this.optFile('./package.json') || '';
+        const pkgStr = await this.optFile(
+            './package.json',
+            undefined,
+            () => '',
+            () => this.editInfo(0, 'error', this.initInfo)
+        ) || '';
         await new Promise<void>((res, rej) => {
             try {
                 this.pkgContent = JSON.parse(pkgStr);
@@ -172,44 +178,58 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             }
         });
 
-        const fn = (res: any, rej: any) => {
-            this.getGitTimes++;
-            if (this.getGitTimes > 10) {
-                this.editInfo(1, 'error', this.initInfo);
-                rej();
-            } else {
-                this.getGitInfo();
-                if (!this.repo) {
-                    setTimeout(() => fn(res, rej), 1000);
-                } else {
-                    res();
-                }
-            }
-        };
+        // const fn = (res: any, rej: any) => {
+        //     this.getGitTimes++;
+        //     if (this.getGitTimes > 10) {
+        //         this.editInfo(1, 'error', this.initInfo);
+        //         rej();
+        //     } else {
+        //         this.getGitInfo();
+        //         if (!this.repo) {
+        //             setTimeout(() => fn(res, rej), 1000);
+        //         } else {
+        //             res();
+        //         }
+        //     }
+        // };
         this.editInfo(1, 'pending', this.initInfo);
-        await new Promise<void>((res, rej) => fn(res, rej));
-        this.editInfo(1, 'success', this.initInfo);
-
-        if (!this.repo) {
+        // await new Promise<void>((res, rej) => fn(res, rej));
+        const ifGitRepo = await this.exeCmd(
+            'if [ -d .git ]; \nthen \necho "git repo" \nelse \necho "" \nfi',
+            () => '',
+            () => this.editInfo(1, 'error', this.initInfo)
+        );
+        if (!ifGitRepo?.startsWith('git repo')) {
+            this.editInfo(1, 'error', this.initInfo);
             return;
         }
+        this.editInfo(1, 'success', this.initInfo);
         this.editInfo(2, 'pending', this.initInfo);
-        await this.repo.fetch().then(() => {
-            this.repo?.getRefs({}).then(res => {
-                this.tags = res
-                    // type: 2 表示 tag
-                    .filter(item => item.type === 2 && item.name !== undefined)
-                    .map(item => item.name as string);
-                    // this.initLoading.res();
-                this.genTag();
-            });
-            this.editInfo(2, 'success', this.initInfo);
-            this.postMsg('updateProgress', '');
-            this.disableSubmit(false);
-        }).catch(() => {
-            // this.initLoading.res();
-            this.editInfo(2, 'error', this.initInfo);
-        });
+        await this.exeCmd('git fetch --tags', () => '', () => this.editInfo(2, 'error', this.initInfo));
+        console.log('');
+        const tags = await this.exeCmd('git tag', () => '', () => this.editInfo(2, 'error', this.initInfo));
+        this.tags = tags.split('\n').filter(item => item !== '');
+        this.editInfo(2, 'success', this.initInfo);
+        this.genTag();
+        this.postMsg('updateProgress', '');
+        this.disableSubmit(false);
+        // this.tags = tags.split('\n').filter(item => item !== '');
+        // await this.repo.fetch().then(() => {
+        //     this.repo?.getRefs({}).then(res => {
+        //         this.tags = res
+        //             // type: 2 表示 tag
+        //             .filter(item => item.type === 2 && item.name !== undefined)
+        //             .map(item => item.name as string);
+        //             // this.initLoading.res();
+        //         this.genTag();
+        //     });
+        //     this.editInfo(2, 'success', this.initInfo);
+        //     this.postMsg('updateProgress', '');
+        //     this.disableSubmit(false);
+        // }).catch(() => {
+        //     // this.initLoading.res();
+        //     this.editInfo(2, 'error', this.initInfo);
+        // });
         this.resultInfo = getDefaultInfo();
     }
 
@@ -231,21 +251,27 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         }
     }
     
-    async optFile(filePath: string, content?: string) {
-        const fullPath = this.getWorkspaceFilePath(filePath);
-        const fileUri = Uri.file(fullPath);
-        try {
-            if (content) {
-                await vscode.workspace.fs.writeFile(fileUri, Buffer.from(content));
-            } else {
-                const byteArray = await vscode.workspace.fs.readFile(fileUri);
-                const fileContent = Buffer.from(byteArray).toString('utf8');
-                return fileContent;
+    async optFile(filePath: string, content: string | undefined, successCb?: (...arg: any) => void, errorCb?: () => void) {
+        return new Promise<string | void>(async(res, rej) => {
+            const fullPath = this.getWorkspaceFilePath(filePath);
+            const fileUri = Uri.file(fullPath);
+            try {
+                if (typeof content === 'string') {
+                    await vscode.workspace.fs.writeFile(fileUri, Buffer.from(content));
+                    successCb?.();
+                    res();
+                } else {
+                    const byteArray = await vscode.workspace.fs.readFile(fileUri);
+                    const fileContent = Buffer.from(byteArray).toString('utf8');
+                    successCb?.(fileContent);
+                    res(fileContent);
+                }
+            } catch (err) {
+                log(`${filePath}: ${err}`);
+                errorCb?.();
+                rej();
             }
-        } catch (err) {
-            log(`${filePath}: ${err}`);
-            throw err;
-        }
+        });
     }
     
     resolveTags(tags: string[]) {
@@ -293,41 +319,60 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         info[index].status = status;
         this.updateProgress(info);
     }
+
+    exeCmd(cmd: string, successCb?: (...arg: any) => void, errorCb?: () => void) {
+        let commandOutput = '';
+        let errorOutput = '';
+        return new Promise<string>((res, rej) => {
+            console.log(cmd);
+            const process = spawnCMD(cmd, {
+                cwd: this.getWorkspaceFilePath(''),
+            });
+            process.stdout.on('data', (data: ArrayBuffer) => {
+                commandOutput += data.toString();
+            });
+            process.stderr.on('data', (data: ArrayBuffer) => {
+                errorOutput = data.toString();
+            });
+            process.on('close', (status: 0 | 1) => {
+                if (status === 0) {
+                    successCb?.(commandOutput);
+                    res(commandOutput);
+                } else {
+                    errorCb?.();
+                    rej();
+                    errorOutput && log(errorOutput);
+                }
+            });
+        });
+    }
     
     async handleSubmit() {
         this.disableSubmit();
-        // const p = await withProgress('Gen Tags: 推送 Tag...');
         if (this.formData.editPkg) {
             this.editInfo(0, 'pending');
             this.pkgContent.tag = this.newTag;
-            await this.optFile('./package.json', JSON.stringify(this.pkgContent, null, 4)).catch(() => {
-                this.editInfo(0, 'error');
-            });
-            this.editInfo(0, 'success');
+            await this.optFile(
+                './package.json',
+                JSON.stringify(this.pkgContent, null, 4),
+                () => this.editInfo(0, 'success'),
+                () => this.editInfo(0, 'error')
+            );
             this.editInfo(1, 'pending');
-            const fullPath = this.getWorkspaceFilePath('package.json');
-            await this.repo?.add([fullPath]).catch(() => {
-                this.editInfo(1, 'error');
-            });
-            this.editInfo(1, 'success');
+            await this.exeCmd(`git add package.json`, () => this.editInfo(1, 'success'), () => this.editInfo(1, 'error'));
             this.editInfo(2, 'pending');
-            await this.repo?.commit('build: update package.json#tag').catch(() => {
-                this.editInfo(2, 'error');
-            });
-            this.editInfo(2, 'success');
+            await this.exeCmd(
+                `git commit -m "build: update package.json#tag"`,
+                () => this.editInfo(2, 'success'),
+                () => this.editInfo(2, 'error'),
+            );
         } else {
             this.resultInfo.slice(0, 3).forEach(item => item.hide = true);
         }
         this.editInfo(3, 'pending');
-        await this.repo?.tag(this.newTag, 'HEAD').catch(() => {
-            this.editInfo(3, 'error');
-        });
-        this.editInfo(3, 'success');
+        await this.exeCmd('git tag ' + this.newTag, () => this.editInfo(3, 'success'), () => this.editInfo(3, 'error'));
         this.editInfo(4, 'pending');
-        await this.repo?.push('origin', this.newTag).catch(() => {
-            this.editInfo(4, 'error');
-        });
-        this.editInfo(4, 'success');
+        await this.exeCmd('git push origin ' + this.newTag, () => this.editInfo(4, 'success'), () => this.editInfo(4, 'error'));
     }
     
     getNonce() {
