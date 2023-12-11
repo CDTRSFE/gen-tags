@@ -3,6 +3,8 @@ import { Repository } from './type';
 import { format } from 'date-fns';
 import spawnCMD from 'spawn-command';
 
+const isWindows = process.platform === 'win32';
+
 const path = require('path');
 const { Uri } = vscode;
 import { log } from './utils';
@@ -170,7 +172,11 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         await this.exeCmd('git rev-parse', () => '', () => this.editInfo(1, 'error', this.initInfo));
         this.editInfo(1, 'success', this.initInfo);
         this.editInfo(2, 'pending', this.initInfo);
-        await this.exeCmd('git tag | xargs git tag -d', () => '', () => this.editInfo(2, 'error', this.initInfo));
+        await this.exeCmd(
+            isWindows ? 'git tag | ForEach-Object { git tag -d $_ }' : 'git tag | xargs git tag -d',
+            () => '',
+            () => this.editInfo(2, 'error', this.initInfo)
+        );
         await this.exeCmd('git fetch --tags', () => '', () => this.editInfo(2, 'error', this.initInfo));
         const tags = await this.exeCmd('git tag', () => '', () => this.editInfo(2, 'error', this.initInfo));
         this.tags = tags.split('\n').filter(item => item !== '');
