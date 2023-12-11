@@ -157,7 +157,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             try {
                 this.pkgContent = JSON.parse(pkgStr);
                 const prefix = this.pkgContent['tagPrefix'] || [];
-                this.postMsg('prefixOptions', prefix);
+                setTimeout(() => this.postMsg('prefixOptions', prefix));
                 this.editInfo(0, 'success', this.initInfo);
                 res();
             } catch (e) {
@@ -167,15 +167,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         });
 
         this.editInfo(1, 'pending', this.initInfo);
-        const ifGitRepo = await this.exeCmd(
-            'if [ -d .git ]; \nthen \necho "git repo" \nelse \necho "" \nfi',
-            () => '',
-            () => this.editInfo(1, 'error', this.initInfo)
-        );
-        if (!ifGitRepo?.startsWith('git repo')) {
-            this.editInfo(1, 'error', this.initInfo);
-            return;
-        }
+        await this.exeCmd('git rev-parse', () => '', () => this.editInfo(1, 'error', this.initInfo));
         this.editInfo(1, 'success', this.initInfo);
         this.editInfo(2, 'pending', this.initInfo);
         await this.exeCmd('git tag | xargs git tag -d', () => '', () => this.editInfo(2, 'error', this.initInfo));
