@@ -278,8 +278,8 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         let commandOutput = '';
         let errorOutput = '';
         return new Promise<string>((res, rej) => {
-            console.log(cmd);
-            const process = spawnCMD(cmd, {
+            const execCommand = isWindows ? `powershell -Command "${cmd}"` : cmd;
+            const process = spawnCMD(execCommand, {
                 cwd: this.getWorkspaceFilePath(''),
             });
             process.stdout.on('data', (data: ArrayBuffer) => {
@@ -316,7 +316,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             await this.exeCmd(`git add package.json`, () => this.editInfo(1, 'success'), () => this.editInfo(1, 'error'));
             this.editInfo(2, 'pending');
             await this.exeCmd(
-                `git commit -m "build: update package.json#tag" --no-verify`,
+                `git commit -m 'build: update package.json#tag' --no-verify`,
                 () => this.editInfo(2, 'success'),
                 () => this.editInfo(2, 'error'),
             );
