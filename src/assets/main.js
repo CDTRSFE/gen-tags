@@ -53,6 +53,11 @@
         const tagDom = query('#tag');
         tagDom.innerHTML = tag;
     };
+
+    const refreshBtnDom = query('#refreshBtn');
+    refreshBtnDom.addEventListener('click', () => {
+        postMsg('init');
+    });
     
     window.addEventListener('message', event => {
         const msg = event.data;
@@ -71,6 +76,17 @@
                 progress.innerHTML = msg.data;
                 progress.style.display = msg.data ? 'block' : 'none';
                 break;
+            case 'successTips':
+                const isSuccess = msg.data;
+                const tips = query('#successTips');
+                const btn = query('#refreshBtn');
+                if (isSuccess) {
+                    tips.style.display = 'flex';
+                    btn.style.display = 'block';
+                } else {
+                    tips.style.display = 'none';
+                    btn.style.display = 'none';
+                }
         }
     });
 })();

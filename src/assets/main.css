@@ -48,10 +48,11 @@ body {
     cursor: pointer;
     user-select: none;
     color: var(--vscode-descriptionForeground);
+    word-break: break-all;
 }
 .tags-btn {
     display: block;
-    margin: 12px var(--container-padding);
+    /* margin: 12px var(--container-padding); */
     /* margin-bottom: 30px; */
 }
 .tags-btn:disabled {
@@ -60,12 +61,16 @@ body {
 }
 
 .footer {
-    display: flex;
+    padding: 12px var(--container-padding);
+    /* display: flex; */
     border-top: 1px solid var(--tags-border-color);
+}
+.w-full {
+    width: 100%;
 }
 .progress {
     display: none;
-    margin: 12px var(--container-padding);
+    /* margin: 12px var(--container-padding); */
     /* padding: 16px 0; */
     /* border-top: 1px solid var(--tags-border-color); */
     color: var(--vscode-descriptionForeground);
@@ -92,4 +97,10 @@ body {
 }
 .pro-item.notStart {
     opacity: 0.5;
+}
+.success-tips, .reload-btn {
+    display: none;
+}
+.success-tips {
+    margin: 8px 0;
 }

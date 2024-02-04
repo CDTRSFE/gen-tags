@@ -36,7 +36,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
     public static readonly viewType: string = 'gen.tags';
     private _view?: vscode.WebviewView;
     public repo?: Repository;
-    public tags: string[] = [];
+    public tags: Record<string, string[]> = {};
     public formData: {
         prefix: string;
         suffix: string;
@@ -135,7 +135,14 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                 </div>
                 <div class="footer">
                     <button class="tags-btn" disabled id="submitBtn">推送 Tag</button>
-                    <div id="progressList" class="progress"></div>
+                    <div class="w-full">
+                        <div id="progressList" class="progress"></div>
+                        <div id="successTips" class="success-tips">
+                            <div class="pro-icon">✓</div>
+                            <div>操作成功</div>
+                        </div>
+                        <button class="tags-btn reload-btn" id="refreshBtn">刷新</button>
+                    </div>
                 </div>
             </div>
             <script nonce="${nonce}" src="${scriptUri}"></script>
@@ -144,6 +151,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
     }
 
     async init() {
+        this.postMsg('successTips', false);
         this.disableSubmit();
         this.postMsg('updateProgress', '');
         this.resultInfo = getInitInfo();
@@ -179,7 +187,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         );
         await this.exeCmd('git fetch --tags', () => '', () => this.editInfo(2, 'error', this.initInfo));
         const tags = await this.exeCmd('git tag', () => '', () => this.editInfo(2, 'error', this.initInfo));
-        this.tags = tags.split('\n').filter(item => item !== '');
+        this.tags = this.resolveTags(tags.split('\n').filter(item => item !== ''));
         this.editInfo(2, 'success', this.initInfo);
         this.genTag();
         this.postMsg('updateProgress', '');
@@ -187,7 +195,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         this.resultInfo = getDefaultInfo();
     }
 
-    postMsg(type: string, data: any) {
+    postMsg(type: string, data?: any) {
         this._view?.webview.postMessage({ type, data });
     }
     disableSubmit(disable = true) {
@@ -229,15 +237,24 @@ export default class TagProvider implements vscode.WebviewViewProvider {
     }
     
     resolveTags(tags: string[]) {
-        return tags.map(item => {
-            const match = item.match(/\d+\.\d+\.\d+/);
-            return match ? match[0] : '';
-        }).filter(item => item !== '');
+        const result: Record<string, string[]> = {};
+        tags.forEach(version => {
+            const match = version.match(/(.*?)(\d+\.\d+\.\d+)/);
+            if (match) {
+                const [, prefix, versionNumber] = match;
+                if (prefix && versionNumber) {
+                    if (!result[prefix]) {
+                        result[prefix] = [];
+                    }
+                    result[prefix].push(versionNumber);
+                }
+            }
+        });
+        return result;
     }
     
     latestTag(data: string[]) {
-        const tags = this.resolveTags(data);
-        const tag = tags.sort((a, b) => {
+        const tag = data.sort((a, b) => {
             const aArr = a.split('.');
             const bArr = b.split('.');
             if (aArr[0] === bArr[0]) {
@@ -253,7 +270,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
     
     genTag() {
         const { prefix, suffix, versionType } = this.formData;
-        let version = this.latestTag(this.tags);
+        let version = this.latestTag(this.tags[prefix] || []);
         const updateIndex = ['major', 'minor', 'patch'].indexOf(versionType);
         if (updateIndex > -1) {
             const versionArr = version.split('.');
@@ -326,7 +343,10 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         this.editInfo(3, 'pending');
         await this.exeCmd('git tag ' + this.newTag, () => this.editInfo(3, 'success'), () => this.editInfo(3, 'error'));
         this.editInfo(4, 'pending');
-        await this.exeCmd('git push origin ' + this.newTag, () => this.editInfo(4, 'success'), () => this.editInfo(4, 'error'));
+        await this.exeCmd('git push origin ' + this.newTag, () => {
+            this.editInfo(4, 'success');
+            this.postMsg('successTips', true);
+        }, () => this.editInfo(4, 'error'));
     }
     
     getNonce() {
