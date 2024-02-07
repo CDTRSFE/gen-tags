@@ -12,8 +12,10 @@
     const versionTypeDom = query('#versionType');
     const editPkgDom = query('#editPkg');
     const submitBtn = query('#submitBtn');
+    const remoteDom = query('#remoteName');
 
     const formData = {
+        remote: '',
         prefix: '',
         suffix: '',
         versionType: 'patch',
@@ -21,6 +23,10 @@
     };
     const updateForm = () => postMsg('formChange', formData);
 
+    remoteDom.addEventListener('change', () => {
+        formData.remote = remoteDom.value;
+        updateForm();
+    });
     prefixDom.addEventListener('change', () => {
         formData.prefix = prefixDom.value;
         updateForm();
@@ -41,13 +47,19 @@
         postMsg('submit', formData);
     });
 
+    const setRemoteOptions = (data) => {
+        const options = data.map((item, index) => {
+            return `<option ${index === 0 ? 'selected' : ''} value="${item}">${item}</option>`;
+        });
+        remoteDom.innerHTML = options.join('');
+        formData.remote = data[0] || '';
+    };
     const setPrefixOptions = (data) => {
         const options = data.map((item, index) => {
             return `<option ${index === 0 ? 'selected' : ''} value="${item}">${item}</option>`;
         });
         prefixDom.innerHTML = options.join('');
         formData.prefix = data[0] || '';
-        updateForm();
     };
     const updateTag = (tag) => {
         const tagDom = query('#tag');
@@ -62,6 +74,13 @@
     window.addEventListener('message', event => {
         const msg = event.data;
         switch (msg.type) {
+            case 'remoteOptions':
+                setRemoteOptions(msg.data);
+                break;
+            case 'updateRemote':
+                formData.remote = msg.data;
+                remoteDom.value = msg.data;
+                break;
             case 'prefixOptions':
                 setPrefixOptions(msg.data);
                 break;

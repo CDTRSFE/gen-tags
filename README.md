@@ -12,15 +12,16 @@
 
 > 前缀通过 package.json 中的 `tagPrefix` 字段配置，如： `tagPrefix: ["v-"]`。
 
-## Requirements
-
-- vscode.git 扩展
 
 ## Known Issues
 
 暂无
 
 ## Release Notes
+
+### 1.4.0
+
+- 增加 remote 选择
 
 ### 1.3.5
 

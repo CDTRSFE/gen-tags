@@ -42,9 +42,11 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         suffix: string;
         versionType: string;
         editPkg: boolean;
+        remote: string;
     } = {
         prefix: '',
         suffix: '',
+        remote: '',
         versionType: 'patch',
         editPkg: true,
     };
@@ -77,6 +79,11 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     this.init();
                     break;
                 case 'formChange':
+                    if (msg.data.remote !== this.formData.remote) {
+                        this.formData = msg.data;
+                        this.init();
+                        return;
+                    }
                     this.formData = msg.data;
                     this.genTag();
                     break;
@@ -114,11 +121,13 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             <div class="tags-wrap">
                 <div class="flex-wrap">
                     <div class="tags-form">
+                        <p class="tags-label">Remote</p>
+                        <select id="remoteName" class="" name="remote_name"></select>
                         <p class="tags-label">Tag 前缀</p>
-                        <select id="prefix" class="tags-target-branch branches-select form" name="tag_prefix">
+                        <select id="prefix" class="" name="tag_prefix">
                         </select>
                         <p class="tags-label">版本类型</p>
-                        <select id="versionType" class="tags-target-branch branches-select form" name="version_type">
+                        <select id="versionType" class="" name="version_type">
                             <option value="major">major</option>
                             <option value="minor">minor</option>
                             <option value="patch" selected>patch</option>
@@ -167,7 +176,10 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             try {
                 this.pkgContent = JSON.parse(pkgStr);
                 const prefix = this.pkgContent['tagPrefix'] || [];
-                setTimeout(() => this.postMsg('prefixOptions', prefix));
+                setTimeout(() => {
+                    this.postMsg('prefixOptions', prefix);
+                    this.formData.prefix = prefix[0] || '';
+                });
                 this.editInfo(0, 'success', this.initInfo);
                 res();
             } catch (e) {
@@ -178,17 +190,27 @@ export default class TagProvider implements vscode.WebviewViewProvider {
 
         this.editInfo(1, 'pending', this.initInfo);
         await this.exeCmd('git rev-parse', () => '', () => this.editInfo(1, 'error', this.initInfo));
+
+        const remoteStr = await this.exeCmd('git remote', () => '', () => this.editInfo(1, 'error', this.initInfo));
+        const remote = (remoteStr.split('\n') || []).filter(item => !!item);
+        this.postMsg('remoteOptions', remote);
+        this.formData.remote = remote.find(v => v === this.formData.remote) || remote[0] || '';
+        setTimeout(() => {
+            this.postMsg('updateRemote', this.formData.remote);
+        });
         this.editInfo(1, 'success', this.initInfo);
+
         this.editInfo(2, 'pending', this.initInfo);
         await this.exeCmd(
             isWindows ? 'git tag | ForEach-Object { git tag -d $_ }' : 'git tag | xargs git tag -d',
             () => '',
             () => this.editInfo(2, 'error', this.initInfo)
         );
-        await this.exeCmd('git fetch --tags', () => '', () => this.editInfo(2, 'error', this.initInfo));
+        await this.exeCmd(`git fetch ${this.formData.remote} --tags`, () => '', () => this.editInfo(2, 'error', this.initInfo));
         const tags = await this.exeCmd('git tag', () => '', () => this.editInfo(2, 'error', this.initInfo));
         this.tags = this.resolveTags(tags.split('\n').filter(item => item !== ''));
         this.editInfo(2, 'success', this.initInfo);
+
         this.genTag();
         this.postMsg('updateProgress', '');
         this.disableSubmit(false);
@@ -218,10 +240,12 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             const fullPath = this.getWorkspaceFilePath(filePath);
             const fileUri = Uri.file(fullPath);
             try {
+                // 写
                 if (typeof content === 'string') {
                     await vscode.workspace.fs.writeFile(fileUri, Buffer.from(content));
                     successCb?.();
                     res();
+                // 读
                 } else {
                     const byteArray = await vscode.workspace.fs.readFile(fileUri);
                     const fileContent = Buffer.from(byteArray).toString('utf8');
@@ -254,17 +278,20 @@ export default class TagProvider implements vscode.WebviewViewProvider {
     }
     
     latestTag(data: string[]) {
-        const tag = data.sort((a, b) => {
-            const aArr = a.split('.');
-            const bArr = b.split('.');
-            if (aArr[0] === bArr[0]) {
-                if (aArr[1] === bArr[1]) {
-                    return Number(aArr[2]) - Number(bArr[2]);
+        const tag = data
+            .slice()
+            .sort((a, b) => {
+                const aArr = a.split('.');
+                const bArr = b.split('.');
+                if (aArr[0] === bArr[0]) {
+                    if (aArr[1] === bArr[1]) {
+                        return Number(aArr[2]) - Number(bArr[2]);
+                    }
+                    return Number(aArr[1]) - Number(bArr[1]);
                 }
-                return Number(aArr[1]) - Number(bArr[1]);
-            }
-            return Number(aArr[0]) - Number(bArr[0]);
-        }).pop();
+                return Number(aArr[0]) - Number(bArr[0]);
+            })
+            .pop();
         return tag || '0.0.0';
     }
     
@@ -280,6 +307,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
             }
             version = versionArr.join('.');
         } else {
+            // RC tag
             version = version + '-' + versionType + '-' + format(new Date(), 'yyyyMMddHHmmss');
         }
         this.newTag = prefix + version + suffix;
@@ -343,7 +371,7 @@ export default class TagProvider implements vscode.WebviewViewProvider {
         this.editInfo(3, 'pending');
         await this.exeCmd('git tag ' + this.newTag, () => this.editInfo(3, 'success'), () => this.editInfo(3, 'error'));
         this.editInfo(4, 'pending');
-        await this.exeCmd('git push origin ' + this.newTag, () => {
+        await this.exeCmd(`git push ${this.formData.remote} ${this.newTag}`, () => {
             this.editInfo(4, 'success');
             this.postMsg('successTips', true);
         }, () => this.editInfo(4, 'error'));

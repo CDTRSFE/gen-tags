@@ -4,6 +4,7 @@
 	--input-padding-horizontal: 4px;
 	--input-margin-vertical: 4px;
 	--input-margin-horizontal: 0;
+	--gm-border-radius: 2px;
 }
 
 body {
@@ -52,6 +53,7 @@ button {
 	outline-offset: 2px !important;
 	color: var(--vscode-button-foreground);
 	background: var(--vscode-button-background);
+	border-radius: var(--gm-border-radius);
 }
 
 button:hover {
@@ -83,6 +85,8 @@ textarea {
 	color: var(--vscode-input-foreground);
 	outline-color: var(--vscode-input-border);
 	background-color: var(--vscode-input-background);
+	border-radius: var(--gm-border-radius);
+	border: 1px solid var(--vscode-input-border, transparent);
 }
 
 input::placeholder,
