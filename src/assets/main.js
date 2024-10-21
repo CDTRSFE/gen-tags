@@ -13,6 +13,7 @@
     const editPkgDom = query('#editPkg');
     const submitBtn = query('#submitBtn');
     const remoteDom = query('#remoteName');
+    const tagDom = query('#tag');
 
     const formData = {
         remote: '',
@@ -47,6 +48,17 @@
         postMsg('submit', formData);
     });
 
+    const extraHeight = tagDom.offsetHeight - tagDom.clientHeight;
+    const autoResize = () => setTimeout(() => {
+        tagDom.style.height = 'auto';
+        tagDom.style.height = (tagDom.scrollHeight + extraHeight) + 'px';
+    });
+    tagDom.addEventListener('input', () => {
+        autoResize();
+        postMsg('edit-tag', tagDom.value.trim());
+    });
+    autoResize();
+
     const setRemoteOptions = (data) => {
         const options = data.map((item, index) => {
             return `<option ${index === 0 ? 'selected' : ''} value="${item}">${item}</option>`;
@@ -62,8 +74,9 @@
         formData.prefix = data[0] || '';
     };
     const updateTag = (tag) => {
-        const tagDom = query('#tag');
-        tagDom.innerHTML = tag;
+        // tagDom.innerHTML = tag;
+        tagDom.value = tag;
+        autoResize();
     };
 
     const refreshBtnDom = query('#refreshBtn');

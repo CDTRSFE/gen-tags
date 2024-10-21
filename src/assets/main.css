@@ -13,6 +13,8 @@ body {
     font-size: 18px;
     text-align: center;
     color: var(--vscode-descriptionForeground);
+    resize: none;
+    overflow: hidden;
 }
 .tags-wrap {
     display: flex;

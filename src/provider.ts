@@ -78,6 +78,10 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                     this.getGitTimes = 0;
                     this.init();
                     break;
+                case 'edit-tag':
+                    // 手动编辑生成的tag
+                    this.newTag = msg.data;
+                    break;
                 case 'formChange':
                     if (msg.data.remote !== this.formData.remote) {
                         this.formData = msg.data;
@@ -137,9 +141,9 @@ export default class TagProvider implements vscode.WebviewViewProvider {
                         <input id="suffix" class="tags-title form" type="text" name="tag_suffix" />
                         <div class="tags-checkbox">
                             <input id="editPkg" class="checkbox" checked type="checkbox" name="edit_pkg">
-                            <label for="editPkg">将生成的 tag 存到 package.json#tag 中，并提交更改。</label>
+                            <label for="editPkg">将生成的 tag 存到 package.json#tag 中，并提交（commit）更改。</label>
                         </div>
-                        <p class="tag-value" id="tag"></p>
+                        <textarea class="tag-value" id="tag" rows="1"></textarea>
                     </div>
                 </div>
                 <div class="footer">
